@@ -1,0 +1,44 @@
+subject: Security Best Practices
+fact: |
+  The ms-copilot project enforces these security best practices:
+
+  ## API Keys and Secrets
+  - Never hardcode API keys, tokens, or passwords in source code
+  - Use environment variables for all sensitive configuration
+  - Ensure .gitignore includes .env, .env.local, and other secret files
+  - Use GitHub Secrets for CI/CD credentials
+  - Rotate any accidentally committed secrets immediately
+
+  ## Input Validation
+  - Validate and sanitize all user inputs
+  - Use parameterized queries for database operations (prevent SQL injection)
+  - Escape HTML output to prevent XSS attacks
+  - Validate file uploads (type, size, content)
+  - Implement rate limiting on API endpoints
+
+  ## Authentication & Authorization
+  - Use industry-standard authentication (OAuth 2.0, JWT)
+  - Implement proper session management
+  - Verify authorization for all protected resources
+  - Use HTTPS for all API communications
+  - Implement CORS policies appropriately
+
+  ## Dependencies
+  - Regularly update dependencies to patch vulnerabilities
+  - Review dependency security advisories
+  - Use lock files (package-lock.json, requirements.txt) to pin versions
+  - Audit dependencies for known CVEs before adding
+
+  ## Error Handling
+  - Don't expose stack traces or internal errors to users
+  - Log errors securely without including sensitive data
+  - Implement proper error boundaries in frontend code
+
+citations: |
+  Based on OWASP Top 10 and general security best practices.
+  Referenced from .github/workflows/google.yml security configuration.
+
+reason: |
+  Security is critical for any application that handles user data or integrates
+  with external services. These practices will be enforced during code reviews
+  and security scans to prevent vulnerabilities from being introduced.

@@ -1,0 +1,36 @@
+subject: Coding Conventions
+fact: |
+  The ms-copilot project follows these coding conventions:
+
+  ## Python
+  - Follow PEP 8 style guide
+  - Use type hints for all function signatures
+  - Maximum line length: 100 characters
+  - Use docstrings (Google style) for all public functions and classes
+  - Prefer f-strings over .format() or % formatting
+  - Use absolute imports over relative imports
+
+  ## JavaScript/TypeScript
+  - Use ES6+ syntax
+  - Prefer const over let, avoid var
+  - Use async/await over promises.then()
+  - Use TypeScript strict mode
+  - Export types and interfaces explicitly
+  - Use PascalCase for components, camelCase for functions
+  - Maximum line length: 100 characters
+
+  ## General
+  - Write descriptive commit messages following conventional commits format
+  - All public APIs must have documentation
+  - Add tests for all new features
+  - Keep functions small and focused (single responsibility)
+  - Use meaningful variable and function names
+
+citations: |
+  Inferred from project structure and common best practices.
+  No explicit style guide found in repository.
+
+reason: |
+  These conventions ensure code consistency across the project and make it easier
+  for contributors to understand and maintain the codebase. Future code reviews
+  and automated linting will reference these standards.
