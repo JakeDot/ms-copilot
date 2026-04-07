@@ -13,6 +13,7 @@ This repository provides an intelligent GitHub Actions workflow system powered b
 - **📦 Dependency Security**: Scans dependencies for vulnerabilities and license issues
 - **🧠 Agent Memory**: Persistent knowledge base for consistent reviews
 - **🔄 Multi-language Support**: Python, JavaScript, TypeScript, and more
+- **⚡ CLI Tool**: Command-line interface for local development and workflow management
 
 ## Getting Started
 
@@ -23,10 +24,35 @@ This repository provides an intelligent GitHub Actions workflow system powered b
 
 ### Setup
 
+#### For GitHub Actions (Automated Reviews)
+
 1. Copy the `.github` directory to your repository
 2. Set up required secrets in your GitHub repository:
    - `COPILOT_API_KEY`: Your MS Copilot API key
 3. The workflows will automatically trigger on pull requests and pushes
+
+#### For CLI Tool (Local Development)
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/JakeDot/ms-copilot.git
+   cd ms-copilot
+   ```
+
+2. Run the setup script:
+   ```bash
+   ./setup-ms-copilot.sh
+   ```
+
+3. The setup script will:
+   - Create an `ms-copilot` alias in your current shell session
+   - Optionally add the alias to your shell configuration file (`.bashrc`, `.zshrc`, or `.config/fish/config.fish`)
+   - Make the alias persistent across shell sessions
+
+4. Verify the installation:
+   ```bash
+   ms-copilot help
+   ```
 
 ## Workflows
 
@@ -50,6 +76,27 @@ The system uses persistent memory files in `.github/agents/memory/` to maintain 
 These memory files help the AI agents learn from past reviews and maintain consistent standards.
 
 ## Usage
+
+### CLI Tool
+
+After running the setup script, you can use the `ms-copilot` command:
+
+```bash
+# Show help and available commands
+ms-copilot help
+
+# Show version
+ms-copilot version
+
+# Validate GitHub Actions workflows
+ms-copilot validate
+
+# Test workflow configuration
+ms-copilot test-workflow
+
+# Re-run setup
+ms-copilot setup
+```
 
 ### Automatic Reviews
 
