@@ -85,7 +85,7 @@ get_alias_command() {
 # Check if alias already exists in RC file
 alias_exists_in_file() {
     local rc_file="$1"
-    if [ -f "$rc_file" ] && grep -Eq "alias[[:space:]]+ms-copilot([=[:space:]])" "$rc_file"; then
+    if [ -f "$rc_file" ] && grep -Eq "alias[[:space:]]+ms-copilot[=[:space:]]" "$rc_file"; then
         return 0
     else
         return 1
@@ -182,8 +182,7 @@ main() {
                     echo -e "  The alias will be available in new shell sessions."
                     echo -e "  To use it immediately in current session, run:"
                     echo -e "    ${BOLD}source ${rc_file}${NC}"
-                    echo -e "  Or run the alias command directly:"
-                    echo -e "    ${BOLD}${alias_cmd}${NC}"
+                    show_immediate_use_instructions "$shell_type"
                 else
                     echo -e "${YELLOW}⚠${NC}  Skipped persistence."
                     show_immediate_use_instructions "$shell_type"
