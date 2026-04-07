@@ -1,0 +1,344 @@
+name: 🤖 MS Copilot Orchestrator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 1: Classify changed files (fast, shell-only)
+  # ──────────────────────────────────────────────────────────────────────────
+  classify:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run_python: ${{ steps.detect.outputs.run_python }}
+      run_javascript: ${{ steps.detect.outputs.run_javascript }}
+      run_typescript: ${{ steps.detect.outputs.run_typescript }}
+      run_docs: ${{ steps.detect.outputs.run_docs }}
+      run_deps: ${{ steps.detect.outputs.run_deps }}
+      changed_files: ${{ steps.detect.outputs.changed_files }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed file categories
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
+          fi
+
+          echo "Changed files:"
+          echo "$FILES"
+          echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          # Python: .py files
+          if echo "$FILES" | grep -qE '\.py$'; then
+            echo "run_python=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_python=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # JavaScript: .js, .jsx files
+          if echo "$FILES" | grep -qE '\.(js|jsx)$'; then
+            echo "run_javascript=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_javascript=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # TypeScript: .ts, .tsx files, tsconfig
+          if echo "$FILES" | grep -qE '\.(ts|tsx)$|tsconfig\.json'; then
+            echo "run_typescript=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_typescript=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Docs: markdown, readme
+          if echo "$FILES" | grep -qE '\.md$|README'; then
+            echo "run_docs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Dependencies: package.json, requirements.txt, etc.
+          if echo "$FILES" | grep -qE 'package\.json|package-lock\.json|requirements\.txt|setup\.py|pyproject\.toml'; then
+            echo "run_deps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_deps=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 2: MS Copilot Code Review
+  # ──────────────────────────────────────────────────────────────────────────
+  copilot-review:
+    name: 🤖 MS Copilot Review
+    needs: classify
+    if: |
+      needs.classify.outputs.run_python == 'true' ||
+      needs.classify.outputs.run_javascript == 'true' ||
+      needs.classify.outputs.run_typescript == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff origin/${{ github.base_ref }}...HEAD > /tmp/full-diff.txt
+          else
+            git diff HEAD~1 HEAD > /tmp/full-diff.txt
+          fi
+
+      - name: Run MS Copilot Review Agent
+        uses: microsoft/copilot-cli-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          copilot_api_key: ${{ secrets.COPILOT_API_KEY }}
+          direct_prompt: |
+            You are the MS Copilot Code Review Agent for the ms-copilot repository.
+
+            ## Memory (read first)
+            - .github/agents/memory/coding-conventions.yml – project coding standards
+            - .github/agents/memory/security-best-practices.yml – security guidelines
+            - .github/agents/memory/false-positives.yml – known false positives to ignore
+
+            ## Context
+            Changed files in this push:
+            ${{ needs.classify.outputs.changed_files }}
+
+            The git diff is at /tmp/full-diff.txt.
+            Read it thoroughly. Also read the affected source files in full context from the workspace.
+
+            ## Your Review Tasks
+
+            ### 1. Code Quality & Best Practices
+            - Check for proper error handling
+            - Verify appropriate use of design patterns
+            - Flag unnecessary complexity or code duplication
+            - Check for proper use of async/await patterns (JavaScript/TypeScript)
+            - Verify type safety (TypeScript) and type hints (Python)
+
+            ### 2. Security Review
+            - Flag any hardcoded credentials or API keys
+            - Check for SQL injection vulnerabilities
+            - Verify input validation and sanitization
+            - Check for XSS vulnerabilities in web code
+            - Verify secure API endpoint implementations
+            - Check for proper authentication and authorization
+
+            ### 3. Performance & Efficiency
+            - Flag inefficient algorithms or data structures
+            - Check for memory leaks (event listeners not cleaned up, etc.)
+            - Verify database queries are optimized
+            - Check for unnecessary re-renders (React components)
+            - Flag blocking operations that should be async
+
+            ### 4. Test Coverage
+            - For every new public function/class added, check if a test exists
+            - Verify test quality and coverage of edge cases
+            - Flag missing integration tests for new features
+
+            ### 5. Documentation
+            - Check that new functions have proper docstrings/JSDoc
+            - Verify README is updated for new features
+            - Flag missing inline comments for complex logic
+
+            ## Output
+            If this is a PR (${{ github.event_name == 'pull_request' && 'yes' || 'no' }}):
+            Post a structured review comment via:
+            ```
+            gh pr comment ${{ github.event.pull_request.number || '0' }} --body "<your review>"
+            ```
+
+            Format your comment as:
+            ```markdown
+            ## 🤖 MS Copilot Code Review
+
+            ### Summary
+            <one paragraph overview of the changes>
+
+            ### 🔴 Critical Issues
+            <issues that must be fixed – or "None">
+
+            ### 🟡 Warnings
+            <things to investigate – or "None">
+
+            ### 🟢 Looks Good
+            <what was done well>
+
+            ### 🧪 Test Coverage
+            <assessment of test coverage – or "None detected">
+
+            ### 📝 Documentation
+            <documentation assessment – or "None needed">
+
+            ---
+            _Review by MS Copilot Agent | [memory](.github/agents/memory/)_
+            ```
+
+            Write a brief summary to /tmp/review-status.txt:
+            - "CRITICAL" if there are critical issues
+            - "WARNINGS" if there are only warnings
+            - "CLEAN" if all good
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 3: Documentation Review
+  # ──────────────────────────────────────────────────────────────────────────
+  docs-review:
+    name: 📝 Documentation Review
+    needs: classify
+    if: needs.classify.outputs.run_docs == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build docs diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff origin/${{ github.base_ref }}...HEAD -- '*.md' 'README*' > /tmp/docs-diff.txt
+          else
+            git diff HEAD~1 HEAD -- '*.md' 'README*' > /tmp/docs-diff.txt
+          fi
+
+      - name: Run Documentation Review
+        uses: microsoft/copilot-cli-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          copilot_api_key: ${{ secrets.COPILOT_API_KEY }}
+          direct_prompt: |
+            You are the Documentation Review Agent for the ms-copilot repository.
+
+            ## Task
+            Read /tmp/docs-diff.txt – documentation changes in this PR/push.
+
+            Review for:
+            1. **Accuracy**: Does the documentation match the actual code behavior?
+               Check claims about how features work against the source files.
+            2. **Clarity**: Flag confusing sentences or missing context.
+            3. **Completeness**: Verify setup instructions, API documentation, examples.
+            4. **Formatting**: Check markdown formatting, links, code blocks.
+
+            If improvements are minor (typos, grammar), list them but don't block.
+            If documentation is materially wrong (wrong commands, wrong API), flag as critical.
+
+            If this is a PR (${{ github.event_name == 'pull_request' && 'yes' || 'no' }}):
+            Post via:
+            ```
+            gh pr comment ${{ github.event.pull_request.number || '0' }} --body "<your review>"
+            ```
+
+            Format:
+            ```markdown
+            ## 📝 Documentation Review
+
+            ### ✅ Accurate
+            <what's correct>
+
+            ### 🟡 Suggestions
+            <improvements>
+
+            ### 🔴 Corrections Needed
+            <factual errors – or "None">
+
+            ---
+            _Review by MS Copilot Docs Agent | [memory](.github/agents/memory/)_
+            ```
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 4: Dependency Security Review
+  # ──────────────────────────────────────────────────────────────────────────
+  dependency-review:
+    name: 📦 Dependency Security
+    needs: classify
+    if: needs.classify.outputs.run_deps == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build dependency diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff origin/${{ github.base_ref }}...HEAD -- 'package.json' 'package-lock.json' 'requirements.txt' 'setup.py' 'pyproject.toml' > /tmp/deps-diff.txt
+          else
+            git diff HEAD~1 HEAD -- 'package.json' 'package-lock.json' 'requirements.txt' 'setup.py' 'pyproject.toml' > /tmp/deps-diff.txt
+          fi
+
+      - name: Run Dependency Security Review
+        uses: microsoft/copilot-cli-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          copilot_api_key: ${{ secrets.COPILOT_API_KEY }}
+          direct_prompt: |
+            You are the Dependency Security Agent for the ms-copilot repository.
+
+            ## Task
+            Read /tmp/deps-diff.txt – the diff of dependency files in this change.
+
+            For every NEW or UPDATED dependency, evaluate:
+            1. **Is the version pinned?** (no wildcards for production deps)
+            2. **Is this a well-known, maintained package?** Flag obscure packages with low downloads.
+            3. **Known CVEs**: Based on your knowledge, flag any well-known vulnerabilities
+               in the specific versions added.
+            4. **License compatibility**: Flag any GPL-licensed dependencies if incompatible
+               with project license.
+            5. **Maintainability**: Flag deprecated or unmaintained packages.
+
+            If this is a PR (${{ github.event_name == 'pull_request' && 'yes' || 'no' }}):
+            Post via:
+            ```
+            gh pr comment ${{ github.event.pull_request.number || '0' }} --body "<your review>"
+            ```
+
+            Format:
+            ```markdown
+            ## 📦 Dependency Security Review
+
+            ### Changed Dependencies
+            <table or list of added/updated/removed deps>
+
+            ### 🔴 High Risk Findings
+            <or "None">
+
+            ### 🟡 Medium Risk Findings
+            <or "None">
+
+            ### ✅ Verdict
+            <overall assessment>
+
+            ---
+            _Review by MS Copilot Security Agent | [memory](.github/agents/memory/)_
+            ```

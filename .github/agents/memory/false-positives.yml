@@ -1,0 +1,39 @@
+subject: Known False Positives
+fact: |
+  The following are known false positives that should be ignored during automated reviews:
+
+  ## Test Files
+  - Test files may contain intentionally insecure code for testing error handling
+  - Example API keys in test fixtures are acceptable if clearly marked as fake
+  - Performance concerns in test files are generally acceptable
+
+  ## Example/Demo Code
+  - Example code in documentation may use simplified patterns for clarity
+  - Demo API keys pattern: "YOUR_API_KEY_HERE" or similar placeholders
+
+  ## Configuration Templates
+  - .env.example files should contain placeholder values, not real secrets
+  - Template files may have patterns that look like secrets but are examples
+
+  ## Generated Code
+  - Auto-generated files (e.g., from protobuf, GraphQL codegen) may not follow
+    all coding conventions and should not be flagged
+
+  ## GitHub Actions
+  - workflow files in .github/workflows may reference secrets via ${{ secrets.* }}
+    syntax - this is the correct and secure way to access secrets in GitHub Actions
+
+  ## Known Patterns to Ignore
+  - Base64 strings in test fixtures
+  - Long hex strings in test data
+  - TODO comments (flag as warnings, not errors)
+
+citations: |
+  Based on common false positive patterns observed in similar projects.
+  Will be updated as specific false positives are identified in this project.
+
+reason: |
+  Reducing false positives improves the signal-to-noise ratio of automated
+  reviews, making it easier for developers to focus on real issues. This file
+  should be updated whenever a legitimate false positive is identified to prevent
+  future duplicate warnings.
