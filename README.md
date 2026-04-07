@@ -45,12 +45,17 @@ This repository provides an intelligent GitHub Actions workflow system powered b
    ```
 
 3. The setup script will:
-   - Create an `ms-copilot` alias in your current shell session
+   - Detect your login shell (`bash`, `zsh`, or `fish`)
    - Optionally add the alias to your shell configuration file (`.bashrc`, `.zshrc`, or `.config/fish/config.fish`)
-   - Make the alias persistent across shell sessions
+   - Print the exact alias command to run for immediate use in your current shell
+   - Make the alias persistent across future shell sessions when you choose persistence
 
 4. Verify the installation:
    ```bash
+   # If you persisted the alias, reload your shell config (or open a new shell)
+   source ~/.bashrc   # or ~/.zshrc / ~/.config/fish/config.fish
+
+   # Then verify
    ms-copilot help
    ```
 
@@ -79,7 +84,7 @@ These memory files help the AI agents learn from past reviews and maintain consi
 
 ### CLI Tool
 
-After running the setup script, you can use the `ms-copilot` command:
+After running the setup script and applying the printed alias command (or reloading your shell config), you can use the `ms-copilot` command:
 
 ```bash
 # Show help and available commands

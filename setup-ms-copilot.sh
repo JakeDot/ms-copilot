@@ -21,29 +21,29 @@ CLI_SCRIPT="${SCRIPT_DIR}/ms-copilot-cli.sh"
 
 # Detect the user's shell
 detect_shell() {
-    if [ -n "$BASH_VERSION" ]; then
-        echo "bash"
-    elif [ -n "$ZSH_VERSION" ]; then
-        echo "zsh"
-    elif [ -n "$FISH_VERSION" ]; then
-        echo "fish"
-    else
-        # Try to detect from SHELL environment variable
-        case "$SHELL" in
-            */bash)
+    # Prefer login/interactive shell from SHELL when script runs under bash.
+    case "$SHELL" in
+        */bash)
+            echo "bash"
+            ;;
+        */zsh)
+            echo "zsh"
+            ;;
+        */fish)
+            echo "fish"
+            ;;
+        *)
+            if [ -n "$BASH_VERSION" ]; then
                 echo "bash"
-                ;;
-            */zsh)
+            elif [ -n "$ZSH_VERSION" ]; then
                 echo "zsh"
-                ;;
-            */fish)
+            elif [ -n "$FISH_VERSION" ]; then
                 echo "fish"
-                ;;
-            *)
+            else
                 echo "unknown"
-                ;;
-        esac
-    fi
+            fi
+            ;;
+    esac
 }
 
 # Get the appropriate RC file for the shell
@@ -74,7 +74,7 @@ get_alias_command() {
     local shell_type="$1"
     case "$shell_type" in
         fish)
-            echo "alias ms-copilot='${CLI_SCRIPT}'"
+            echo "alias ms-copilot '${CLI_SCRIPT}'"
             ;;
         *)
             echo "alias ms-copilot='${CLI_SCRIPT}'"
@@ -85,7 +85,7 @@ get_alias_command() {
 # Check if alias already exists in RC file
 alias_exists_in_file() {
     local rc_file="$1"
-    if [ -f "$rc_file" ] && grep -q "alias ms-copilot=" "$rc_file"; then
+    if [ -f "$rc_file" ] && grep -Eq "alias[[:space:]]+ms-copilot([=[:space:]])" "$rc_file"; then
         return 0
     else
         return 1
@@ -122,20 +122,13 @@ EOF
     echo -e "${GREEN}✓${NC} Alias added to ${rc_file}"
 }
 
-# Set up the alias in the current shell
-setup_current_shell() {
-    local shell_type
-    shell_type=$(detect_shell)
+# Show immediate-use instructions for the parent shell
+show_immediate_use_instructions() {
+    local shell_type="$1"
     local alias_cmd
     alias_cmd=$(get_alias_command "$shell_type")
-
-    echo -e "${BLUE}Setting up ms-copilot alias in current shell...${NC}"
-
-    # Set the alias for the current session
-    alias ms-copilot="${CLI_SCRIPT}"
-
-    echo -e "${GREEN}✓${NC} Alias 'ms-copilot' created in current shell session"
-    echo -e "  You can now run: ${BOLD}ms-copilot help${NC}"
+    echo -e "${BLUE}To use ms-copilot immediately in this shell, run:${NC}"
+    echo -e "  ${BOLD}${alias_cmd}${NC}"
 }
 
 # Main setup function
@@ -161,10 +154,6 @@ main() {
     local shell_type
     shell_type=$(detect_shell)
     echo -e "Detected shell: ${BOLD}${shell_type}${NC}"
-    echo ""
-
-    # Set up alias in current shell
-    setup_current_shell
     echo ""
 
     # Ask about persisting the alias
@@ -193,24 +182,28 @@ main() {
                     echo -e "  The alias will be available in new shell sessions."
                     echo -e "  To use it immediately in current session, run:"
                     echo -e "    ${BOLD}source ${rc_file}${NC}"
+                    echo -e "  Or run the alias command directly:"
+                    echo -e "    ${BOLD}${alias_cmd}${NC}"
                 else
-                    echo -e "${YELLOW}⚠${NC}  Skipped persistence. Alias available only in current session."
+                    echo -e "${YELLOW}⚠${NC}  Skipped persistence."
+                    show_immediate_use_instructions "$shell_type"
                 fi
             fi
         else
             echo -e "${YELLOW}⚠${NC}  Could not determine shell RC file location."
-            echo -e "   Alias is available in current session only."
+            show_immediate_use_instructions "$shell_type"
         fi
     else
-        echo -e "${YELLOW}⚠${NC}  Unknown shell. Alias setup in current session only."
+        echo -e "${YELLOW}⚠${NC}  Unknown shell."
         echo -e "   To persist, manually add to your shell's RC file:"
         echo -e "     ${BOLD}alias ms-copilot='${CLI_SCRIPT}'${NC}"
+        show_immediate_use_instructions "$shell_type"
     fi
 
     echo ""
     echo -e "${GREEN}${BOLD}Setup complete!${NC}"
     echo ""
-    echo -e "Try running: ${BOLD}ms-copilot help${NC}"
+    echo -e "After applying the alias in your shell, try: ${BOLD}ms-copilot help${NC}"
     echo ""
 }
 
