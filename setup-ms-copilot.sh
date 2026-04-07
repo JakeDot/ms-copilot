@@ -85,7 +85,19 @@ get_alias_command() {
 # Check if alias already exists in RC file
 alias_exists_in_file() {
     local rc_file="$1"
-    if [ -f "$rc_file" ] && grep -Eq "alias[[:space:]]+ms-copilot(=|[[:space:]])" "$rc_file"; then
+    local shell_type="$2"
+    local pattern
+
+    case "$shell_type" in
+        fish)
+            pattern="alias[[:space:]]+ms-copilot[[:space:]]"
+            ;;
+        *)
+            pattern="alias[[:space:]]+ms-copilot="
+            ;;
+    esac
+
+    if [ -f "$rc_file" ] && grep -Eq "$pattern" "$rc_file"; then
         return 0
     else
         return 1
@@ -163,7 +175,7 @@ main() {
 
         if [ -n "$rc_file" ]; then
             # Check if alias already exists
-            if alias_exists_in_file "$rc_file"; then
+            if alias_exists_in_file "$rc_file" "$shell_type"; then
                 echo -e "${YELLOW}⚠${NC}  Alias already exists in ${rc_file}"
                 echo -e "   No changes made to avoid duplication."
             else
@@ -195,7 +207,7 @@ main() {
         echo -e "${YELLOW}⚠${NC}  Unknown shell."
         echo -e "   To persist, manually add to your shell's RC file:"
         echo -e "     ${BOLD}alias ms-copilot='${CLI_SCRIPT}'${NC}"
-        show_immediate_use_instructions "$shell_type"
+        show_immediate_use_instructions "bash"
     fi
 
     echo ""
